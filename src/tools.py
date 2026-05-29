@@ -1,6 +1,7 @@
 """Tool definitions and execution for the data analysis Agent."""
 
 import subprocess
+import sys
 import os
 
 import pandas as pd
@@ -96,7 +97,7 @@ def _execute_python(code: str, timeout: int = 10) -> str:
 
     try:
         result = subprocess.run(
-            ["python", "-c", code],
+            [sys.executable, "-c", code],
             capture_output=True,
             text=True,
             encoding="utf-8",

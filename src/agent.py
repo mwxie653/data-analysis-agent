@@ -41,12 +41,19 @@ class Agent:
         consecutive_errors = 0
 
         for turn in range(self.max_turns):
-            response = self.llm.client.chat.completions.create(
-                model="deepseek-chat",
-                messages=messages,
-                tools=TOOLS,
-                temperature=0.3,
-            )
+            try:
+                response = self.llm.client.chat.completions.create(
+                    model="deepseek-chat",
+                    messages=messages,
+                    tools=TOOLS,
+                    temperature=0.3,
+                )
+            except Exception as e:
+                log.append({
+                    "type": "error",
+                    "content": f"API 调用失败：{e}",
+                })
+                return log
             msg = response.choices[0].message
 
             # LLM decided to answer directly — task complete
