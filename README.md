@@ -32,8 +32,8 @@ User: "Analyze titanic.csv and show survival rate by gender"
 │ (tools.py, 46 nl) │  │ (sandbox.py, 29 nl)          │
 │                   │  │                              │
 │ • list_files      │  │ AST static analysis:          │
-│ • read_file       │  │   blocks 8 dangerous modules │
-│ • execute_python  │  │   + 5 dangerous functions    │
+│ • read_file       │  │   blocks 13 dangerous modules│
+│ • execute_python  │  │   + 6 dangerous functions    │
 │ • generate_plot   │  │                              │
 │                   │  │ subprocess isolation:         │
 │                   │  │   10s timeout, utf-8 safe     │
@@ -78,7 +78,7 @@ Self-implementing the ReAct loop took 59 lines. LangChain's `AgentExecutor` for 
 
 ### Why AST blacklist instead of whitelist?
 
-A whitelist (only allow `pandas`, `numpy`, `matplotlib`, `seaborn`) is stricter but requires exhaustive enumeration. The blacklist (8 modules + 5 functions) catches the most common dangerous operations LLMs might generate, while being flexible enough for the prototype stage. Production would migrate to a whitelist. Either way, the subprocess isolation layer catches whatever the AST layer misses.
+A whitelist (only allow `pandas`, `numpy`, `matplotlib`, `seaborn`) is stricter but requires exhaustive enumeration. The blacklist (13 modules + 6 functions) catches the most common dangerous operations LLMs might generate — including `importlib`, `io`, `pathlib`, and `getattr` which are common bypass vectors missed by simpler blacklists. Production should migrate to a whitelist. Either way, the subprocess isolation layer catches whatever the AST layer misses.
 
 ### Why temperature=0.3?
 
@@ -99,10 +99,10 @@ Two-layer defense-in-depth:
 
 | Layer | Mechanism | What it blocks |
 |-------|-----------|---------------|
-| AST static analysis | `ast.parse()` → `ast.walk()` → node type check | `import os`, `subprocess`, `socket`, `shutil`, `sys`, `ctypes`, `multiprocessing`, `signal`; calls to `eval()`, `exec()`, `compile()`, `__import__()`, `open()` |
+| AST static analysis | `ast.parse()` → `ast.walk()` → node type check | 13 modules: `os`, `subprocess`, `socket`, `shutil`, `sys`, `ctypes`, `multiprocessing`, `signal`, `importlib`, `io`, `pathlib`, `glob`, `tempfile`; 6 functions: `eval()`, `exec()`, `compile()`, `__import__()`, `open()`, `getattr()` |
 | subprocess isolation | `subprocess.run()` with `timeout=10`, `shell=False`, `capture_output=True` | Code runs in independent process; dead loops killed at 10s; no shell injection vector |
 
-Known limitation: AST only catches direct calls (`eval()`), not indirect ones (`getattr(__builtins__, 'exec')`). The subprocess layer is the catch-all for these bypasses. Production would add a third layer: per-session Docker container isolation.
+Known limitation: AST catches direct calls by name, including `getattr()` (blocked). But it cannot catch dict-based access like `__builtins__.__dict__['exec']` where no forbidden function name appears in the AST. The subprocess layer is the catch-all for these remaining bypasses. Production would add a third layer: per-session Docker container isolation.
 
 ## Verification
 
@@ -166,5 +166,4 @@ No Chroma, no LangChain, no sentence-transformers.
 - **No semantic loop detection**: Agent can repeat the same successful action without stopping. A production system should detect duplicate `(tool_name, args)` pairs within a window.
 - **No streaming**: Agent waits for full LLM response before displaying. Streaming would improve perceived responsiveness.
 - **No multi-turn context**: Each question starts a fresh session. Multi-turn would enable iterative deep-dive analysis.
-- **Blacklist completeness**: `importlib` and `io.open` are known gaps in the current blacklist. A whitelist approach would eliminate this class of issues.
 - **No Prompt Injection defense**: CSV column names or filenames containing malicious instructions could influence Agent behavior. Input sanitization is the next security item.
