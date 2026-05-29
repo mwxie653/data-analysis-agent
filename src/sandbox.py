@@ -4,12 +4,13 @@ import ast
 
 FORBIDDEN_IMPORTS = {
     "os", "subprocess", "socket", "shutil", "sys",
-    "ctypes", "multiprocessing", "signal",
+    "ctypes", "multiprocessing", "signal", "importlib",
+    "io", "pathlib", "glob", "tempfile",
 }
 
 FORBIDDEN_CALLS = {
     "eval", "exec", "compile", "__import__",
-    "open",
+    "open", "getattr",
 }
 
 

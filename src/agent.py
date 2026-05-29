@@ -63,7 +63,17 @@ class Agent:
 
             for tc in msg.tool_calls:
                 tool_name = tc.function.name
-                args = json.loads(tc.function.arguments)
+                try:
+                    args = json.loads(tc.function.arguments)
+                except json.JSONDecodeError:
+                    log.append({
+                        "type": "error",
+                        "content": f"LLM 返回了无效的 JSON 参数：{tc.function.arguments[:200]}",
+                    })
+                    consecutive_errors += 1
+                    if consecutive_errors >= 2:
+                        return log
+                    continue
 
                 log.append({
                     "type": "action",

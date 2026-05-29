@@ -57,10 +57,14 @@ if question and api_key:
             elif entry["type"] == "error":
                 st.error(entry["content"])
 
-        # Show generated charts
+        # Show generated charts (current session only)
+        if "session_plots" not in st.session_state:
+            st.session_state.session_plots = set()
         os.makedirs("outputs", exist_ok=True)
-        plots = sorted(glob.glob("outputs/*.png"), reverse=True)
-        if plots:
+        current_plots = set(glob.glob("outputs/*.png"))
+        new_plots = current_plots - st.session_state.session_plots
+        st.session_state.session_plots = current_plots
+        if new_plots:
             st.subheader("生成的图表")
-            for p in plots:
+            for p in sorted(new_plots, reverse=True):
                 st.image(p)
